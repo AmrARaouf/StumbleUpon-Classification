@@ -35,7 +35,7 @@ def extract_text_features(sents):
         named_ent = nltk.ne_chunk(tagged)
         for word in named_ent:
             if type(word) is nltk.Tree and word.label() in word_feat_dict:
-                features[word_feat_dict[word.label()]] += 1
+                features[word_feat_dict[word.label()]] = 1
     return features
 
 def read_csv(file_name, category_dict, do_shuffle=True, with_labels=True):
@@ -49,7 +49,7 @@ def read_csv(file_name, category_dict, do_shuffle=True, with_labels=True):
         if not(category in category_dict):
             category_dict[category] = len(category_dict)
         row[3] = category_dict[category]
-        #print row[2]
+        """
         json_str = row.pop(2)
         text_feats = ''
         try:
@@ -69,9 +69,14 @@ def read_csv(file_name, category_dict, do_shuffle=True, with_labels=True):
             row.pop(0)
             dataset += [text_feat + row]
         print len(dataset), ' ', len(dataset[-1])
-        #if (len(dataset[-1]) != 34):
-        #    print '=====================error=============\n', dataset[-1]
-    #dataset.pop(0)
+        """
+        #####################################################
+        if (row[-1] == ''):
+            dataset += [row[3:-1]]
+        else:
+            dataset += [row[3:]]
+        ####################################################
+    #dataset.pop(0) #add only if there is a title row
     if (do_shuffle):
         shuffle(dataset)
     if not(with_labels):
@@ -88,35 +93,48 @@ def prune_nonnumber(data):
         for column in row:
             if is_number(column):
                 tmp += [float(column)]
-            else:
-                print column, '\n'
+            #else:
+                #print column, '\n'
         new_data += [tmp]
     return new_data
 
 def main():
     category_dict = {'missing':0}
     training_data, training_labels = read_csv("train.csv", category_dict)
+    """
     for row in training_data:
         del row[9]
     training_data = prune_nonnumber(training_data)
-    #print training_data
+    """
+    #####################################################
+    training_data = prune_nonnumber(training_data)
+    #for row in training_data:
+        #del row[0]
+    #####################################################
     threshold = int(len(training_labels) * 0.8)
     validation_data = np.array(training_data[threshold:], float)
     validation_labels = np.array(training_labels[threshold:], float)
     training_data = np.array(training_data[:threshold], float)
     training_labels = np.array(training_labels[:threshold], float)
-    clf = ensemble.GradientBoostingClassifier(n_estimators=1000) #ensemble.ExtraTreesClassifier()#ensemble.RandomForestClassifier() #tree.DecisionTreeClassifier()  #skl.linear_model.SGDClassifier(penalty='elasticnet') #svm.NuSVC() #GaussianNB()
+    clf = ensemble.GradientBoostingClassifier(n_estimators=1000, max_depth=2) #ensemble.ExtraTreesClassifier()#ensemble.RandomForestClassifier() #tree.DecisionTreeClassifier()  #skl.linear_model.SGDClassifier(penalty='elasticnet') #svm.NuSVC() #GaussianNB()
     clf.fit(training_data, training_labels)
     validation_results = clf.predict(validation_data)
     fpr, tpr, thresholds = metrics.roc_curve(validation_labels, validation_results, pos_label=1)
     auc = metrics.auc(fpr,tpr)
     print auc 
     testing_data = read_csv("test.csv", category_dict, False, False)
+    """
     for row in testing_data:
         del row[9]
     testing_data = prune_nonnumber(testing_data)
+    """
+    #####################################################
+    testing_data = prune_nonnumber(testing_data)
+    #for row in testing_data:
+        #del row[0]
+    #####################################################
     testing_results = clf.predict(testing_data)
-    np.savetxt("output_fashi5_ner.csv", testing_results)
+    np.savetxt("output_fashi5_woner3.csv", testing_results)
     print metrics.accuracy_score(validation_labels, validation_results)
 
 if __name__ == "__main__":
